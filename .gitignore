@@ -1,4 +1,6 @@
 .env
+certs/*
 producer/.venv
-producer/certs/*
 producer/__pycache__/
+processor/.venv
+processor/__pycache__/

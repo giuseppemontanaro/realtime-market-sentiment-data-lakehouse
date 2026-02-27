@@ -1,0 +1,16 @@
+services:
+  producer:
+    build: 
+      context: ./producer  
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./.env:/app/.env:ro
+    restart: always
+
+  spark-processor:
+    build:
+      context: ./processor
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./.env:/app/.env:ro
+      - ./checkpoints:/tmp/checkpoint
