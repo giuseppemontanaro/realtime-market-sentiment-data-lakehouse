@@ -1,16 +1,28 @@
 services:
   producer:
-    build: 
-      context: ./producer  
+    build: ./producer
+    env_file: .env
     volumes:
       - ./certs:/app/certs:ro
       - ./.env:/app/.env:ro
     restart: always
 
-  spark-processor:
-    build:
-      context: ./processor
+  bronze-processor:
+    build: 
+      context: ./processors
+    command: ["bronze_layer.py"]
+    env_file: .env
     volumes:
+      - ./processors/bronze_layer:/app/processor
       - ./certs:/app/certs:ro
-      - ./.env:/app/.env:ro
-      - ./checkpoints:/tmp/checkpoint
+
+  # silver-processor:
+  #   build: 
+  #     context: ./processor
+  #   command: ["silver_layer.py"]
+  #   env_file: .env
+  #   volumes:
+  #     - ./processors/silver_layer:/app
+  #     - ./certs:/app/certs:ro
+  #   depends_on:
+  #     - bronze-processor

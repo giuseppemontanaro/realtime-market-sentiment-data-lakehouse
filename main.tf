@@ -1,9 +1,9 @@
 provider "aws" {
-  region = "eu-central-1"
+  region = "eu-south-1"
 }
 
 resource "aws_s3_bucket" "data_lake" {
-  bucket = "market-sentiment-lakehouse-tuonome"
+  bucket = "market-sentiment-lakehouse-gm"
 }
 
 resource "aws_iam_user" "spark_user" {
@@ -18,8 +18,13 @@ resource "aws_iam_policy" "spark_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action   = ["s3:PutObject", "s3:GetObject", "s3:ListBucket"]
-        Effect   = "Allow"
+        Action = [
+                  "s3:PutObject", 
+                  "s3:GetObject", 
+                  "s3:ListBucket",
+                  "s3:DeleteObject",
+                ]
+        Effect = "Allow"
         Resource = [
           "${aws_s3_bucket.data_lake.arn}",
           "${aws_s3_bucket.data_lake.arn}/*"

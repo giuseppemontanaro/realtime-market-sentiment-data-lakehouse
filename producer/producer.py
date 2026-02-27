@@ -3,10 +3,7 @@ import json
 import time
 import random
 from datetime import datetime, timezone
-from dotenv import load_dotenv
 from confluent_kafka import Producer
-
-load_dotenv()
 
 conf = {
     'bootstrap.servers': os.getenv('KAFKA_BOOTSTRAP_SERVER'),
