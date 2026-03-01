@@ -16,13 +16,13 @@ services:
       - ./processors/bronze_layer:/app/processor
       - ./certs:/app/certs:ro
 
-  # silver-processor:
-  #   build: 
-  #     context: ./processor
-  #   command: ["silver_layer.py"]
-  #   env_file: .env
-  #   volumes:
-  #     - ./processors/silver_layer:/app
-  #     - ./certs:/app/certs:ro
-  #   depends_on:
-  #     - bronze-processor
+  silver-processor:
+    build: 
+      context: ./processors
+    command: ["silver_layer.py"]
+    env_file: .env
+    volumes:
+      - ./processors/silver_layer:/app/processor
+      - ./certs:/app/certs:ro
+    depends_on:
+      - bronze-processor

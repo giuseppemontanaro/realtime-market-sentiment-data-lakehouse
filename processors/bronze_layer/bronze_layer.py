@@ -3,21 +3,20 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col, to_date
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, IntegerType
 
+
 KAFKA_SERVER = os.getenv('KAFKA_BOOTSTRAP_SERVER')
 KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
 KAFKA_CA_PATH = os.getenv('KAFKA_CA_PATH')
 KAFKA_CERT_PATH = os.getenv('KAFKA_CERT_PATH')
 KAFKA_KEY_PATH = os.getenv('KAFKA_KEY_PATH')
 
-AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
-AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
 AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
 BRONZE_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/medallion/bronze/market_data/"
 CHECKPOINT_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/checkpoints/bronze_layer/"
 
 
 spark = SparkSession.builder \
-    .appName("MarketDataStreaming") \
+    .appName("Medallion-Bronze") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
