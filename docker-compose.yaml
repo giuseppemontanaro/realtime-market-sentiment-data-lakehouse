@@ -26,3 +26,14 @@ services:
       - ./certs:/app/certs:ro
     depends_on:
       - bronze-processor
+
+  gold-processor:
+    build: 
+      context: ./processors
+    command: ["gold_layer.py"]
+    env_file: .env
+    volumes:
+      - ./processors/gold_layer:/app/processor
+      - ./certs:/app/certs:ro
+    depends_on:
+      - silver-processor

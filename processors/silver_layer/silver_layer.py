@@ -12,6 +12,8 @@ CHECKPOINT_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/checkpoints/silver_layer/"
 
 spark = SparkSession.builder \
     .appName("Medallion-Silver-Delta") \
+    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension") \
+    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog") \
     .getOrCreate()
 
 def upsert_to_delta(microBatchDF, batchId):
