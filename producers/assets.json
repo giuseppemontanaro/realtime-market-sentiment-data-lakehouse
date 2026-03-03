@@ -1,0 +1,130 @@
+{
+  "assets": [
+    {
+      "ticker": "AAPL",
+      "name": "Apple",
+      "search_keywords": ["Apple", "iPhone", "MacBook"],
+      "sector": "Technology",
+      "type": "stock"
+    },
+    {
+      "ticker": "MSFT",
+      "name": "Microsoft",
+      "search_keywords": ["Microsoft", "Azure", "Windows"],
+      "sector": "Technology",
+      "type": "stock"
+    },
+    {
+      "ticker": "NVDA",
+      "name": "Nvidia",
+      "search_keywords": ["Nvidia", "GPU", "AI chips"],
+      "sector": "Technology",
+      "type": "stock"
+    },
+    {
+      "ticker": "GOOGL",
+      "name": "Google",
+      "search_keywords": ["Google", "Alphabet", "YouTube"],
+      "sector": "Technology",
+      "type": "stock"
+    },
+    {
+      "ticker": "META",
+      "name": "Meta",
+      "search_keywords": ["Meta", "Facebook", "Instagram"],
+      "sector": "Technology",
+      "type": "stock"
+    },
+    {
+      "ticker": "AMZN",
+      "name": "Amazon",
+      "search_keywords": ["Amazon", "AWS"],
+      "sector": "Consumer Discretionary",
+      "type": "stock"
+    },
+    {
+      "ticker": "TSLA",
+      "name": "Tesla",
+      "search_keywords": ["Tesla", "Elon Musk", "EV"],
+      "sector": "Consumer Discretionary",
+      "type": "stock"
+    },
+    {
+      "ticker": "NFLX",
+      "name": "Netflix",
+      "search_keywords": ["Netflix", "Streaming"],
+      "sector": "Communication Services",
+      "type": "stock"
+    },
+    {
+      "ticker": "DIS",
+      "name": "Disney",
+      "search_keywords": ["Disney", "Disney Plus"],
+      "sector": "Communication Services",
+      "type": "stock"
+    },
+    {
+      "ticker": "WMT",
+      "name": "Walmart",
+      "search_keywords": ["Walmart", "Retail"],
+      "sector": "Consumer Staples",
+      "type": "stock"
+    },
+    {
+      "ticker": "V",
+      "name": "Visa",
+      "search_keywords": ["Visa", "McInerney"],
+      "sector": "Financials",
+      "type": "stock"
+    },
+    {
+      "ticker": "MA",
+      "name": "Mastercard",
+      "search_keywords": ["Mastercard", "Miebach"],
+      "sector": "Financials",
+      "type": "stock"
+    },
+    {
+      "ticker": "PYPL",
+      "name": "PayPal",
+      "search_keywords": ["PayPal", "Lores"],
+      "sector": "Financials",
+      "type": "stock"
+    },
+    {
+      "ticker": "JPM",
+      "name": "JPMorgan",
+      "search_keywords": ["JPMorgan", "Dimon"],
+      "sector": "Financials",
+      "type": "stock"
+    },
+    {
+      "ticker": "GS",
+      "name": "Goldman Sachs",
+      "search_keywords": ["Goldman Sachs", "Solomon"],
+      "sector": "Financials",
+      "type": "stock"
+    },
+    {
+      "ticker": "BTC-USD",
+      "name": "Bitcoin",
+      "search_keywords": ["Bitcoin", "BTC", "Satoshi Nakamoto"],
+      "sector": "Crypto",
+      "type": "crypto"
+    },
+    {
+      "ticker": "ETH-USD",
+      "name": "Ethereum",
+      "search_keywords": ["Ethereum", "ETH", "Buterin"],
+      "sector": "Crypto",
+      "type": "crypto"
+    },
+    {
+      "ticker": "SOL-USD",
+      "name": "Solana",
+      "search_keywords": ["Solana", "SOL", "Yakovenko"],
+      "sector": "Crypto",
+      "type": "crypto"
+    }
+  ]
+}

@@ -1,1 +1,3 @@
 confluent-kafka==2.13.0
+yfinance
+pandas

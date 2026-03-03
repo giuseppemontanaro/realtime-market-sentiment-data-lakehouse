@@ -1,6 +1,7 @@
 .env
 certs/*
-producer/.venv
-producer/__pycache__/
+producers/data
+producers/.venv
+producers/__pycache__/
 processor/.venv
 processor/__pycache__/

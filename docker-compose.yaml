@@ -1,11 +1,28 @@
 services:
-  producer:
-    build: ./producer
+  market-producer:
+    build: ./producers
+    command: ["python", "/app/yf_producer.py"]
     env_file: .env
     volumes:
       - ./certs:/app/certs:ro
       - ./.env:/app/.env:ro
-    restart: always
+    
+  news-producer:
+    build: ./producers
+    command: ["python", "/app/news_producer.py"]
+    env_file: .env
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./.env:/app/.env:ro
+
+  simulated-reddit-producer:
+    build: ./producers
+    command: ["python", "/app/simulated_reddit_producer.py"]
+    env_file: .env
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./.env:/app/.env:ro
+      - ./producers/data:/app/data:ro
 
   bronze-processor:
     build: 
