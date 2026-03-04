@@ -20,7 +20,7 @@ BASE_CHECKPOINT_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/checkpoints/bronze"
 
 
 # --- SCHEMES ---
-price_schema = StructType([
+market_schema = StructType([
     StructField("timestamp", StringType()),
     StructField("ticker", StringType()),
     StructField("price", DoubleType()),
@@ -38,7 +38,7 @@ news_schema = StructType([
     StructField("related_tickers", ArrayType(StringType()))
 ])
 
-social_schema = StructType([
+reddit_schema = StructType([
     StructField("timestamp", StringType()),
     StructField("author", StringType()),
     StructField("title", StringType()),
@@ -77,8 +77,8 @@ raw_df = spark.readStream \
 base_df = raw_df.selectExpr("CAST(value AS STRING) as json_payload", "topic", "timestamp as kafka_arrival_ts")
 
 # market stream
-prices_df = base_df.filter(col("topic") == f"{KAFKA_TOPIC_MARKET}") \
-    .select(from_json(col("json_payload"), price_schema).alias("data"), "kafka_arrival_ts") \
+market_df = base_df.filter(col("topic") == f"{KAFKA_TOPIC_MARKET}") \
+    .select(from_json(col("json_payload"), market_schema).alias("data"), "kafka_arrival_ts") \
     .select("data.*", "kafka_arrival_ts") \
     .withColumn("ingestion_date", to_date(col("timestamp")))
 
@@ -89,14 +89,14 @@ news_df = base_df.filter(col("topic") == f"{KAFKA_TOPIC_NEWS}") \
     .withColumn("ingestion_date", to_date(col("timestamp")))
 
 # reddit stream
-social_df = base_df.filter(col("topic") == f"{KAFKA_TOPIC_REDDIT}") \
-    .select(from_json(col("json_payload"), social_schema).alias("data"), "kafka_arrival_ts") \
+reddit_df = base_df.filter(col("topic") == f"{KAFKA_TOPIC_REDDIT}") \
+    .select(from_json(col("json_payload"), reddit_schema).alias("data"), "kafka_arrival_ts") \
     .select("data.*", "kafka_arrival_ts") \
     .withColumn("ingestion_date", to_date(col("timestamp")))
 
 
 # --- MULTI-SINK WRITING ---
-q1 = prices_df.writeStream \
+q1 = market_df.writeStream \
     .format("parquet") \
     .partitionBy("ingestion_date", "ticker") \
     .option("path", f"{BASE_BRONZE_PATH}/market/") \
@@ -110,7 +110,7 @@ q2 = news_df.writeStream \
     .option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/news/") \
     .start()
 
-q3 = social_df.writeStream \
+q3 = reddit_df.writeStream \
     .format("parquet") \
     .partitionBy("ingestion_date") \
     .option("path", f"{BASE_BRONZE_PATH}/reddit/") \
