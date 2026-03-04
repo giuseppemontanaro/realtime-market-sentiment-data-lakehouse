@@ -52,7 +52,7 @@ def run_simulator():
                     'original_id': row['id'],
                     'author': row['author'],
                     'title': row['title'],
-                    'body': row['selftext'][:1000] if isinstance(row['selftext'], str) else "",
+                    'body': row['selftext'][:3000] if isinstance(row['selftext'], str) else "",
                     'score': int(row['score']),
                     'num_comments': int(row['num_comments']),
                     'upvote_ratio': float(row['upvote_ratio']),
