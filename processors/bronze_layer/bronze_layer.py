@@ -44,6 +44,8 @@ reddit_schema = StructType([
     StructField("title", StringType()),
     StructField("body", StringType()),
     StructField("score", IntegerType()),
+    StructField("num_comments", IntegerType()),
+    StructField("upvote_ratio", DoubleType()),
     StructField("related_tickers", ArrayType(StringType())),
     StructField("source", StringType())
 ])
