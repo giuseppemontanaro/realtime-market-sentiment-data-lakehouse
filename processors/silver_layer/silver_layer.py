@@ -1,5 +1,7 @@
 import os
 import re
+import time
+import boto3
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, to_date, to_timestamp, explode, udf, when, avg, stddev,
@@ -7,13 +9,16 @@ from pyspark.sql.functions import (
 )
 from pyspark.sql.types import (
     StructType, StructField, StringType, DoubleType,
-    IntegerType, ArrayType, FloatType, LongType
+    IntegerType, ArrayType, FloatType, LongType, DateType
 )
 from delta.tables import DeltaTable
 from textblob import TextBlob
 
 # --- CONFIGURATION ---
 AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
+AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
+AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
+
 BASE_BRONZE_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/medallion/bronze/"
 BASE_SILVER_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/medallion/silver/"
 BASE_CHECKPOINT_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/checkpoints/silver/"
@@ -48,7 +53,8 @@ market_schema = StructType([
     StructField("price", DoubleType()),
     StructField("volume", LongType()),
     StructField("sector", StringType()),
-    StructField("name", StringType())
+    StructField("name", StringType()),
+    StructField("ingestion_date", DateType())
 ])
 
 news_schema = StructType([
@@ -57,7 +63,8 @@ news_schema = StructType([
     StructField("title", StringType()),
     StructField("description", StringType()),
     StructField("url", StringType()),
-    StructField("related_tickers", ArrayType(StringType()))
+    StructField("related_tickers", ArrayType(StringType())),
+    StructField("ingestion_date", DateType())
 ])
 
 reddit_schema = StructType([
@@ -69,41 +76,42 @@ reddit_schema = StructType([
     StructField("num_comments", IntegerType()),
     StructField("upvote_ratio", DoubleType()),
     StructField("related_tickers", ArrayType(StringType())),
-    StructField("source", StringType())
+    StructField("source", StringType()),
+    StructField("ingestion_date", DateType())
 ])
 
-# --- PROCESSING MARKET (Outlier Detection and Standardization) ---
-market_bronze = spark.readStream.format("parquet").schema(market_schema).load(f"{BASE_BRONZE_PATH}/market/")
+
+# --- WAITING IF NO DATA ON S3 ---
+def wait_for_s3_data(path, bucket):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=AWS_ACCESS_KEY,
+        aws_secret_access_key=AWS_SECRET_KEY,
+    )
+    print(f"Checking for data in {path}...")
+    while True:
+        results = s3.list_objects_v2(Bucket=bucket, Prefix=path.split(f"{bucket}/")[1])
+        if 'Contents' in results:
+            print("Data found! Starting Spark stream...")
+            break
+        print("Waiting for initial data on S3... (10s)")
+        time.sleep(10)
+
+wait_for_s3_data(f"{BASE_BRONZE_PATH}market/", AWS_S3_BUCKET_NAME)
+wait_for_s3_data(f"{BASE_BRONZE_PATH}news/", AWS_S3_BUCKET_NAME)
+wait_for_s3_data(f"{BASE_BRONZE_PATH}reddit/", AWS_S3_BUCKET_NAME)
+
+# --- PROCESSING MARKET (Standardization) ---
+market_bronze = spark.readStream.format("parquet").schema(market_schema).load(f"{BASE_BRONZE_PATH}market/")
 
 # Standardization
-market_standardized = market_bronze \
+market_silver = market_bronze \
     .withColumn("timestamp", to_timestamp(col("timestamp"))) \
     .withColumn("ticker", upper(regexp_replace(col("ticker"), "-USD", ""))) \
     .withColumn("event_window", window(col("timestamp"), "1 minute").start)
 
-# 1. Defining temporal window to get stats for filtering
-stats_window = market_standardized \
-    .withWatermark("timestamp", "10 minutes") \
-    .groupBy(window(col("timestamp"), "10 minutes"), col("ticker")) \
-    .agg(
-        avg("price").alias("mean_price"),
-        stddev("price").alias("stddev_price")
-    )
-
-# 2. Join original stream with stats
-market_with_stats = market_standardized \
-    .join(stats_window, ["ticker"])
-
-# 3. Z-Score and filtering
-market_silver = market_with_stats \
-    .withColumn("z_score", spark_abs((col("price") - col("mean_price")) / col("stddev_price"))) \
-    .filter((col("z_score") < 3) | (col("stddev_price") == 0)) \
-    .withColumn("date", to_date(col("timestamp"))) \
-    .select("timestamp", "ticker", "price", "volume", "date")
-
-
 # --- PROCESSING NEWS (cleaning, standardization and sentiment) ---
-news_bronze = spark.readStream.format("parquet").schema(news_schema).load(f"{BASE_BRONZE_PATH}/news/")
+news_bronze = spark.readStream.format("parquet").schema(news_schema).load(f"{BASE_BRONZE_PATH}news/")
 
 news_silver = news_bronze \
     .withColumn("timestamp", to_timestamp(col("timestamp"))) \
@@ -116,7 +124,7 @@ news_silver = news_bronze \
     .select("timestamp", "event_window", "date", "ticker", "source", "clean_title", "sentiment_score", "url")
 
 # --- PROCESSING SOCIAL (Sentiment, standardization and Impact Score) ---
-reddit_bronze = spark.readStream.format("parquet").schema(reddit_schema).load(f"{BASE_BRONZE_PATH}/reddit/")
+reddit_bronze = spark.readStream.format("parquet").schema(reddit_schema).load(f"{BASE_BRONZE_PATH}reddit/")
 
 reddit_silver = reddit_bronze \
     .withColumn("timestamp", to_timestamp(col("timestamp"))) \
@@ -145,19 +153,31 @@ def upsert_to_delta(microBatchDF, batchId, target_path, merge_cols):
           .execute()
 
 # --- MULTI-SINK WRITING ---
-q1 = market_silver.writeStream.foreachBatch(
-    lambda df, id: upsert_to_delta(df, id, f"{BASE_SILVER_PATH}/market/", "t.ticker = u.ticker AND t.timestamp = u.timestamp")
-).option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/market/") \
-.start()
+q1 = market_silver.writeStream \
+    .foreachBatch(lambda df, id: upsert_to_delta(
+        df, 
+        id, 
+        f"{BASE_SILVER_PATH}/market/", 
+        "t.ticker = u.ticker AND t.timestamp = u.timestamp")) \
+    .option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/market/") \
+    .start()
 
-q2 = news_silver.writeStream.foreachBatch(
-    lambda df, id: upsert_to_delta(df, id, f"{BASE_SILVER_PATH}/news/", "t.ticker = u.ticker AND t.timestamp = u.timestamp AND t.url = u.url")
-).option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/news/") \
-.start()
+q2 = news_silver.writeStream \
+    .foreachBatch(lambda df, id: upsert_to_delta(
+        df, 
+        id, 
+        f"{BASE_SILVER_PATH}/news/", 
+        "t.ticker = u.ticker AND t.timestamp = u.timestamp AND t.url = u.url")) \
+    .option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/news/") \
+    .start()
 
-q3 = reddit_silver.writeStream.foreachBatch(
-    lambda df, id: upsert_to_delta(df, id, f"{BASE_SILVER_PATH}/reddit/", "t.ticker = u.ticker AND t.timestamp = u.timestamp AND t.author = u.author")
-).option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/reddit/") \
-.start()
+q3 = reddit_silver.writeStream \
+    .foreachBatch( lambda df, id: upsert_to_delta(
+        df, 
+        id, 
+        f"{BASE_SILVER_PATH}/reddit/", 
+        "t.ticker = u.ticker AND t.timestamp = u.timestamp AND t.author = u.author")) \
+    .option("checkpointLocation", f"{BASE_CHECKPOINT_PATH}/reddit/") \
+    .start()
 
 spark.streams.awaitAnyTermination()
