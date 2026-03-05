@@ -36,7 +36,7 @@ def get_related_tickers(text, assets):
     found_tickers = []
     text_lower = text.lower()
     for a in assets:
-        keywords = [a['ticker'].lower(), a['name'].lower()] + [k.lower() for k in a.get('search_keywords', [])]
+        keywords = [a['name'].lower()] + [k.lower() for k in a.get('search_keywords', [])]
         if any(kw in text_lower for kw in keywords):
             found_tickers.append(a['ticker'])
     return list(set(found_tickers))
@@ -84,6 +84,7 @@ def fetch_and_produce():
                     key=art['url'],
                     value=json.dumps(payload).encode('utf-8')
                 )
+                print(f"Sent news from {art['source']['name']}.")
             
             producer.flush()
         else:
