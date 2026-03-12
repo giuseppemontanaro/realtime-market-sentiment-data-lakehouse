@@ -5,3 +5,4 @@ producers/.venv
 producers/__pycache__/
 processor/.venv
 processor/__pycache__/
+dashboard/.venv
