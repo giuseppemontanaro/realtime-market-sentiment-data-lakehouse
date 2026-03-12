@@ -1,4 +1,4 @@
 pyspark==3.5.0
 delta-spark==3.0.0
-textblob
+vaderSentiment
 boto3

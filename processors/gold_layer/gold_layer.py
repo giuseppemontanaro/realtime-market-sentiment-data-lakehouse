@@ -12,7 +12,6 @@ AWS_SECRET_KEY = os.getenv('AWS_SECRET_KEY')
 
 BASE_SILVER_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/medallion/silver/"
 BASE_GOLD_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/medallion/gold"
-GOLD_LATEST_PATH = f"{BASE_GOLD_PATH}/ticker_latest/"
 GOLD_SENTIMENT_PATH = f"{BASE_GOLD_PATH}/sentiment_impact/"
 CHECKPOINT_PATH = f"s3a://{AWS_S3_BUCKET_NAME}/checkpoints/gold/"
 
@@ -41,7 +40,7 @@ wait_for_s3_data(f"{BASE_SILVER_PATH}reddit/", AWS_S3_BUCKET_NAME)
 market_df = spark.readStream.format("delta").load(f"{BASE_SILVER_PATH}market/")
 
 market_agg = market_df.groupBy(
-    window(col("timestamp"), "5 minutes"),
+    window(col("timestamp"), "1 minute"),
     col("ticker")
 ).agg(
     avg("price").alias("avg_price"),
@@ -58,30 +57,35 @@ def write_to_delta(batch_df, batch_id):
     market_static = spark.read.format("delta").load(f"{BASE_SILVER_PATH}market/") \
         .filter(col("timestamp") >= expr("current_timestamp() - interval 24 hours"))
 
+    # 1. Prepariamo i dati Silver con la stessa colonna "window_start"
+    # Usiamo lo start della finestra per il join
     reddit_static = spark.read.format("delta").load(f"{BASE_SILVER_PATH}reddit/") \
-        .filter(col("timestamp") >= expr("current_timestamp() - interval 2 hours"))
+        .withColumn("window_start", window(col("timestamp"), "1 minute").start)
 
     news_static = spark.read.format("delta").load(f"{BASE_SILVER_PATH}news/") \
-        .filter(col("timestamp") >= expr("current_timestamp() - interval 2 hours"))
+        .withColumn("window_start", window(col("timestamp"), "1 minute").start)
     
     avg_volume_static = market_static.groupBy("ticker").agg(
         avg("volume").alias("historical_avg_volume")
     )
 
-    reddit_agg = reddit_static.groupBy("ticker").agg(
-        (sum(col("sentiment_score") * col("impact_score")) / sum("impact_score")).alias("social_sentiment"),
-        count("*").alias("social_volume")
+    # 2. Aggreghiamo includendo window_start nel GroupBy
+    reddit_agg = reddit_static.groupBy("window_start", "ticker").agg(
+        (sum(col("sentiment_score") * col("impact_score")) / sum("impact_score")).alias("social_sentiment")
     )
 
-    news_agg = news_static.groupBy("ticker").agg(
-        avg("sentiment_score").alias("news_sentiment"),
-        count("*").alias("news_volume")
+    news_agg = news_static.groupBy("window_start", "ticker").agg(
+        avg("sentiment_score").alias("news_sentiment")
     )
 
-    result = batch_df \
+    # 3. Allineiamo il batch_df (Market) per il join
+    # Estraiamo window_start dalla colonna window strutturata
+    batch_with_time = batch_df.withColumn("window_start", col("window.start"))
+
+    result = batch_with_time \
         .join(avg_volume_static, "ticker", "left") \
-        .join(reddit_agg, "ticker", "left") \
-        .join(news_agg, "ticker", "left") \
+        .join(reddit_agg, ["window_start", "ticker"], "left") \
+        .join(news_agg, ["window_start", "ticker"], "left") \
         .withColumn("vwap", 
             when(col("sum_volume") > 0, col("sum_price_volume") / col("sum_volume"))
             .otherwise(col("avg_price"))
@@ -100,19 +104,20 @@ def write_to_delta(batch_df, batch_id):
         ) \
         .withColumn("combined_sentiment", (col("social_sentiment") + col("news_sentiment")) / 2)
     
-    result.write \
-        .format("delta") \
-        .mode("append") \
-        .save(GOLD_SENTIMENT_PATH)
-     
-    if not DeltaTable.isDeltaTable(spark, GOLD_LATEST_PATH):
-        result.write.format("delta").mode("append").save(GOLD_LATEST_PATH)
+    if not DeltaTable.isDeltaTable(spark, GOLD_SENTIMENT_PATH):
+        # Se è la prima volta, scrivi normalmente
+        result.write.format("delta").mode("overwrite").save(GOLD_SENTIMENT_PATH)
     else:
-        dt_latest = DeltaTable.forPath(spark, GOLD_LATEST_PATH)
-        dt_latest.alias("t").merge(result.alias("u"), "t.ticker = u.ticker") \
-            .whenMatchedUpdateAll() \
-            .whenNotMatchedInsertAll() \
-            .execute()
+        # 2. Esegui il MERGE (Upsert)
+        dt_gold = DeltaTable.forPath(spark, GOLD_SENTIMENT_PATH)
+        
+        dt_gold.alias("target").merge(
+            result.alias("updates"),
+            "target.window_start = updates.window_start AND target.ticker = updates.ticker"
+        ).whenMatchedUpdateAll() \
+         .whenNotMatchedInsertAll() \
+         .execute()
+    
 
 query = market_agg.writeStream \
     .foreachBatch(write_to_delta) \

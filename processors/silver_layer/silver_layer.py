@@ -12,7 +12,7 @@ from pyspark.sql.types import (
     IntegerType, ArrayType, FloatType, LongType, DateType
 )
 from delta.tables import DeltaTable
-from textblob import TextBlob
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # --- CONFIGURATION ---
 AWS_S3_BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
@@ -30,11 +30,15 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # --- UDF: SENTIMENT AND CLEANING ---
-def get_sentiment(text):
-    if text is None: return 0.0
-    return float(TextBlob(text).sentiment.polarity)
+analyzer = SentimentIntensityAnalyzer()
 
-sentiment_udf = udf(get_sentiment, FloatType())
+def get_vader_sentiment(text):
+    if text is None or text.strip() == "": 
+        return 0.0
+    scores = analyzer.polarity_scores(text)
+    return float(scores['compound'])
+
+sentiment_udf = udf(get_vader_sentiment, FloatType())
 
 def clean_text_func(text):
     if text is None: return ""
