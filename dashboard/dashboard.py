@@ -47,7 +47,7 @@ view = st.sidebar.radio("Select View", ["Market Overview", "Ticker Deep-Dive"])
 
 if view == "Market Overview":
     st.title("Market Sentiment Overview")
-    st.markdown("Analisi aggregata di tutti i 18 ticker nel Lakehouse. I dati volutamente simulano un mercato molto volatile. Ciò è utile a mostrare come il sistema intercetti correttamente il mercato e il suo contorno (social & news) e possa essere utilizato come base per future analisi complesse.")
+    st.markdown("Aggregate analysis of all 18 tickers within the Lakehouse. The data intentionally simulates a highly volatile market to demonstrate the system's ability to accurately track stock trends and surrounding context (social & news). This serves as a robust foundation for future, more complex analytics.")
 
     st.subheader("Top Performers (Sentiment)")
     top_cols = st.columns(5)
@@ -79,7 +79,7 @@ else:
     st.sidebar.markdown("---")
     selected_asset = st.sidebar.selectbox("Choose Ticker", sorted(df_latest['ticker'].unique()))
     
-    st.title(f"🔍 Deep-Dive: {selected_asset}")
+    st.title(f"Deep-Dive: {selected_asset}")
     
     ticker_df = df_hist[df_hist['ticker'] == selected_asset]
     latest_val = df_latest[df_latest['ticker'] == selected_asset].iloc[0]
