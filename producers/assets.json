@@ -45,7 +45,7 @@
     {
       "ticker": "TSLA",
       "name": "Tesla",
-      "search_keywords": ["Tesla", "Elon Musk", "EV"],
+      "search_keywords": ["Tesla", "Elon Musk"],
       "sector": "Consumer Discretionary",
       "type": "stock"
     },
