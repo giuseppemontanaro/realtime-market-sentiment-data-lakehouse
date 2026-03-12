@@ -1,5 +1,6 @@
 services:
   market-producer:
+    profiles: ["dev"]
     build: ./producers
     command: ["python", "/app/yf_producer.py"]
     env_file: .env
@@ -8,6 +9,7 @@ services:
       - ./.env:/app/.env:ro
     
   news-producer:
+    profiles: ["dev"]
     build: ./producers
     command: ["python", "/app/news_producer.py"]
     env_file: .env
@@ -16,6 +18,7 @@ services:
       - ./.env:/app/.env:ro
 
   simulated-reddit-producer:
+    profiles: ["dev"]
     build: ./producers
     command: ["python", "/app/simulated_reddit_producer.py"]
     env_file: .env
@@ -23,6 +26,15 @@ services:
       - ./certs:/app/certs:ro
       - ./.env:/app/.env:ro
       - ./producers/data:/app/data:ro
+
+  demo-producer:
+    profiles: ["demo"]
+    build: ./producers
+    command: ["python", "/app/demo_producer.py"]
+    env_file: .env
+    volumes:
+      - ./certs:/app/certs:ro
+      - ./.env:/app/.env:ro
 
   bronze-processor:
     build: 
@@ -54,3 +66,19 @@ services:
       - ./certs:/app/certs:ro
     depends_on:
       - silver-processor
+
+maintenance-job:
+    build:
+      context: ./processors
+    command: >
+      sh -c "while true; do 
+               spark-submit --packages io.delta:delta-core_2.12:2.4.0 /app/processor/medallion_maintenance.py; 
+               echo 'Maintenance finished. Sleeping for 24 hours...'; 
+               sleep 86400; 
+             done"
+    env_file: .env
+    volumes:
+      - ./processors/maintenance:/app/processor
+      - ./certs:/app/certs:ro
+    depends_on:
+      - gold-processor
