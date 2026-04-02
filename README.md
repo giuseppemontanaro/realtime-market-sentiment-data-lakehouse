@@ -10,8 +10,9 @@ The pipeline follows the **Medallion Architecture** to ensure data integrity and
 
 ![Diagram](imgs/achitecture_diagram.png)
 
-1.  **Ingestion (Bronze)**: Raw data is ingested from Kafka into S3 as Delta tables. No transformations are applied at this stage to preserve data lineage.
+1.  **Ingestion (Bronze)**: Raw data is ingested from Kafka into S3 as plain Parquets files. No transformations are applied at this stage to preserve data lineage.
 2.  **Processing (Silver)**: 
+    * **Data Format Transformation**: Data now is saved in Delta Lake format.
     * **Data Cleaning**: Schema enforcement and deduplication.
     * **NLP Engine**: Sentiment analysis using **VADER**, optimized for financial jargon and social media intensity.
 3.  **Analytics (Gold)**: 
@@ -28,10 +29,10 @@ The system supports multiple producer modes to test different scenarios:
 
 | Producer | Data Source | Characteristics |
 | :--- | :--- | :--- |
-| `demo_producer.py` | **Mock/Synthetic** | Designed for the demo. Uses "Regimes" (Bull/Bear) to emphasize rapid price/sentiment changes. |
+| `demo_producer.py` | **Mock/Synthetic** | Designed for the demo. Uses "Regimes" (Bull/Neutral/Bear) to emphasize rapid price/sentiment changes. |
 | `hybrid_yf_producer.py` | **YFinance + Noise** | Starts with real Yahoo Finance data and injects 1-second synthetic noise for high-density testing. |
 | `yf_producer.py` | **Yahoo Finance** | Legacy producer using real-world 1-minute interval data. |
-| `news_producer.py` | **Real News API** | Real financial news (1-day delay due to Free Tier constraints). |
+| `news_producer.py` | **Real News API** | Real financial news (1-day delay due to NewsAPI Free Tier constraints). |
 | `reddit_producer.py` | **Historical CSV** | Real Reddit posts from a 2021 dataset for authentic social sentiment analysis. |
 
 ---
